@@ -2637,7 +2637,7 @@
       }
     },
     "menu.app.check_for_updates" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4947,7 +4947,7 @@
       }
     },
     "menu.help.release_notes" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11844,7 +11844,7 @@
       }
     },
     "statusbar.check_for_updates" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13703,7 +13703,7 @@
       }
     },
     "update.available.later" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13780,7 +13780,7 @@
       }
     },
     "update.available.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13857,7 +13857,7 @@
       }
     },
     "update.available.open_downloads" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13934,7 +13934,7 @@
       }
     },
     "update.available.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14011,7 +14011,7 @@
       }
     },
     "update.failed.ok" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14088,7 +14088,7 @@
       }
     },
     "update.failed.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14165,7 +14165,7 @@
       }
     },
     "update.up_to_date.message" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14242,7 +14242,7 @@
       }
     },
     "update.up_to_date.ok" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14319,7 +14319,7 @@
       }
     },
     "update.up_to_date.title" : {
-      "extractionState" : "stale",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
         "de" : {
           "stringUnit" : {

@@ -10,6 +10,8 @@ final class EditorTextView: NSTextView {
 
     // MARK: - Current line highlight
 
+    private var previousHighlightLineRect: NSRect?
+
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
 
@@ -18,11 +20,16 @@ final class EditorTextView: NSTextView {
 
         let ns = string as NSString
         guard ns.length > 0 else { return }
+
+        // Don't trigger layout during drawing – only use already-laid-out content
+        let lineRange: NSRange
         let sel = selectedRange()
         let location = min(sel.location, ns.length)
-        let lineRange = ns.lineRange(for: NSRange(location: location, length: 0))
+        lineRange = ns.lineRange(for: NSRange(location: location, length: 0))
+        guard layoutManager.firstUnlaidCharacterIndex() > lineRange.upperBound else { return }
 
         let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
+        guard glyphRange.length > 0 else { return }
         var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
         lineRect.origin.x = bounds.minX
         lineRect.origin.y += textContainerOrigin.y
@@ -32,6 +39,32 @@ final class EditorTextView: NSTextView {
 
         NSColor.selectedTextBackgroundColor.withAlphaComponent(0.12).setFill()
         lineRect.fill()
+        previousHighlightLineRect = lineRect
+    }
+
+    func invalidateCurrentLineHighlight() {
+        // Invalidate the old highlight rect
+        if let prev = previousHighlightLineRect {
+            setNeedsDisplay(prev)
+        }
+        // Invalidate the new line rect
+        guard let layoutManager, let textContainer else { return }
+        let ns = string as NSString
+        guard ns.length > 0 else { return }
+        let sel = selectedRange()
+        let location = min(sel.location, ns.length)
+        let lineRange = ns.lineRange(for: NSRange(location: location, length: 0))
+        guard layoutManager.firstUnlaidCharacterIndex() > lineRange.upperBound else {
+            needsDisplay = true
+            return
+        }
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
+        guard glyphRange.length > 0 else { return }
+        var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+        lineRect.origin.x = bounds.minX
+        lineRect.origin.y += textContainerOrigin.y
+        lineRect.size.width = bounds.width
+        setNeedsDisplay(lineRect)
     }
 
     var onTextChange: ((String) -> Void)?
