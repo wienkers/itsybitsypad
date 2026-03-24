@@ -48,15 +48,15 @@ struct EditorContentView: NSViewRepresentable {
         let theme = editorState.highlightCoordinator.theme
         container.window?.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
 
-        // Claim first responder when this tab becomes selected
+        // Claim first responder when this tab becomes selected.
+        // Always defer to next run loop – Bonsplit switches tabs by hiding/unhiding
+        // hosting views, and the text view may not accept first responder until
+        // AppKit finishes processing the visibility change.
         if isSelected {
             let textView = editorState.textView
-            if let window = textView.window, window.firstResponder !== textView {
-                window.makeFirstResponder(textView)
-            } else if textView.window == nil {
-                // New tab — view not yet in window, defer to next run loop
-                DispatchQueue.main.async {
-                    textView.window?.makeFirstResponder(textView)
+            DispatchQueue.main.async {
+                if let window = textView.window, window.firstResponder !== textView {
+                    window.makeFirstResponder(textView)
                 }
             }
         }

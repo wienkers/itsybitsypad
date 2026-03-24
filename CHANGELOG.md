@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.0
+
+Fixes:
+- Fixed line numbers misaligned with text at larger line spacing values
+- Fixed line numbers jumping when typing or pressing enter
+- Fixed current line highlight only covering first visual line of wrapped lines
+- Fixed cursor not restored when switching from clipboard back to an editor tab
+
 ## 1.13.0
 
 Features:
