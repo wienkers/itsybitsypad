@@ -5,7 +5,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case editor
     case appearance
     case clipboard
-    case labs
 
     var id: String { rawValue }
 
@@ -15,7 +14,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .editor: return String(localized: "settings.tab.editor", defaultValue: "Editor")
         case .appearance: return String(localized: "settings.tab.appearance", defaultValue: "Appearance")
         case .clipboard: return String(localized: "settings.tab.clipboard", defaultValue: "Clipboard")
-        case .labs: return String(localized: "settings.tab.labs", defaultValue: "Labs")
         }
     }
 
@@ -25,7 +23,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .editor: return "square.and.pencil"
         case .appearance: return "paintbrush"
         case .clipboard: return "paperclip"
-        case .labs: return "flask"
         }
     }
 }
@@ -71,8 +68,6 @@ struct SettingsView: View {
                     AppearanceSettingsView(store: store)
                 case .clipboard:
                     ClipboardSettingsView(store: store)
-                case .labs:
-                    LabsSettingsView(store: store)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -159,61 +154,6 @@ struct GeneralSettingsView: View {
         } else {
             let minutes = seconds / 60
             return String(localized: "settings.general.sync_minutes_ago", defaultValue: "Last synced: \(minutes) min ago")
-        }
-    }
-}
-
-struct LabsSettingsView: View {
-    @ObservedObject var store: SettingsStore
-    @ObservedObject private var g2Engine = G2SyncEngine.shared
-
-    var body: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Toggle(String(localized: "settings.labs.g2_sync", defaultValue: "Even G2 sync"), isOn: Binding(
-                        get: { store.g2SyncEnabled },
-                        set: { store.setG2Sync($0) }
-                    ))
-                    Text(String(localized: "settings.labs.g2_sync_description", defaultValue: "Syncs scratch tabs with Even Realities G2 glasses."))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    if store.g2SyncEnabled {
-                        g2StatusView
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    @ViewBuilder
-    private var g2StatusView: some View {
-        switch g2Engine.state {
-        case .disabled:
-            EmptyView()
-        case .pairing(let code):
-            HStack(spacing: 6) {
-                Text(String(localized: "settings.labs.pairing_code", defaultValue: "Pairing code:"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text(code)
-                    .font(.system(.footnote, design: .monospaced))
-                    .fontWeight(.bold)
-            }
-            Text(String(localized: "settings.labs.pairing_hint", defaultValue: "Enter this code in the G2 app to connect."))
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-        case .linked:
-            HStack(spacing: 6) {
-                Text(String(localized: "settings.labs.connected", defaultValue: "Connected"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(String(localized: "settings.labs.unpair", defaultValue: "Unpair")) {
-                    store.setG2Sync(false)
-                }
-                .controlSize(.small)
-            }
         }
     }
 }
