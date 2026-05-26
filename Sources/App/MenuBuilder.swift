@@ -130,6 +130,14 @@ class MenuBuilder {
 
         let findMenu = NSMenu(title: String(localized: "menu.edit.find", defaultValue: "Find"))
 
+        let searchAllTabsItem = NSMenuItem(title: String(localized: "menu.edit.search_all_tabs", defaultValue: "Search all tabs…"), action: #selector(AppDelegate.globalSearchAction), keyEquivalent: "f")
+        searchAllTabsItem.image = NSImage(systemSymbolName: "text.magnifyingglass", accessibilityDescription: nil)
+        searchAllTabsItem.keyEquivalentModifierMask = [.command, .shift]
+        searchAllTabsItem.target = target
+        findMenu.addItem(searchAllTabsItem)
+
+        findMenu.addItem(.separator())
+
         let findItem = NSMenuItem(title: String(localized: "menu.edit.find_ellipsis", defaultValue: "Find..."), action: #selector(AppDelegate.findAction(_:)), keyEquivalent: "f")
         findItem.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
         findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)

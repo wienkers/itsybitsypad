@@ -76,6 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     private var showMarkdownPreview = false
     private var pendingFileURLs: [URL] = []
     private var tabSwitchMonitor: Any?
+    private var globalSearchController: GlobalSearchController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -496,11 +497,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
             item.target = self
             item.action = #selector(togglePreviewAction)
         case .findReplace:
-            item.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: String(localized: "toolbar.find", defaultValue: "Find"))
-            item.label = String(localized: "toolbar.find", defaultValue: "Find")
-            item.toolTip = String(localized: "toolbar.find_and_replace", defaultValue: "Find and replace (⌘F)")
+            item.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: String(localized: "toolbar.search", defaultValue: "Search"))
+            item.label = String(localized: "toolbar.search", defaultValue: "Search")
+            item.toolTip = String(localized: "toolbar.search_all_tabs", defaultValue: "Search all tabs (⇧⌘F)")
             item.target = self
-            item.action = #selector(toggleFindAction)
+            item.action = #selector(globalSearchAction)
         default:
             return nil
         }
@@ -593,7 +594,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     }
 
     @objc func findAction(_ sender: NSMenuItem) {
-        editorCoordinator?.activeTextView()?.performFindPanelAction(sender)
+        guard let textView = editorCoordinator?.activeTextView() else { return }
+
+        // Cmd+F toggles the in-tab find bar: close it if it's already showing.
+        if sender.tag == Int(NSTextFinder.Action.showFindInterface.rawValue),
+           textView.enclosingScrollView?.isFindBarVisible == true {
+            let hideItem = NSMenuItem()
+            hideItem.tag = Int(NSTextFinder.Action.hideFindInterface.rawValue)
+            textView.performFindPanelAction(hideItem)
+            return
+        }
+
+        textView.performFindPanelAction(sender)
     }
 
     @objc func toggleChecklistAction() {
@@ -740,12 +752,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         editorCoordinator?.controller.selectTab(tabID)
     }
 
-    @objc private func toggleFindAction() {
-        guard let textView = editorCoordinator?.activeTextView() else { return }
-        let isVisible = textView.enclosingScrollView?.isFindBarVisible ?? false
-        let item = NSMenuItem()
-        item.tag = Int((isVisible ? NSTextFinder.Action.hideFindInterface : NSTextFinder.Action.showFindInterface).rawValue)
-        textView.performFindPanelAction(item)
+    @objc func globalSearchAction() {
+        guard let window = editorWindow else { return }
+        if !window.isVisible {
+            windowWasVisible = true
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            updateDockVisibility()
+        }
+
+        let controller: GlobalSearchController
+        if let existing = globalSearchController {
+            controller = existing
+        } else {
+            controller = GlobalSearchController()
+            controller.tabsProvider = {
+                TabStore.shared.tabs.map { GlobalSearch.Source(id: $0.id, name: $0.name, content: $0.content) }
+            }
+            controller.onReveal = { [weak self] tabID, range in
+                self?.editorCoordinator?.revealMatch(tabStoreID: tabID, range: range)
+            }
+            globalSearchController = controller
+        }
+        controller.toggle(over: window)
     }
 
     // MARK: - NSMenuDelegate

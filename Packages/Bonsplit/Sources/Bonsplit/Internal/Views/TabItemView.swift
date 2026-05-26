@@ -63,18 +63,32 @@ struct TabItemView: View {
             let items = contextMenuItems()
             if !items.isEmpty {
                 ForEach(items) { item in
-                    Button {
-                        item.action()
-                    } label: {
-                        if let icon = item.icon {
-                            Label(item.title, systemImage: icon)
-                        } else if item.isChecked == true {
-                            Label(item.title, systemImage: "checkmark")
-                        } else {
-                            Text(item.title)
+                    switch item.kind {
+                    case .separator:
+                        Divider()
+                    case .info:
+                        Button {} label: {
+                            if let icon = item.icon {
+                                Label(item.title, systemImage: icon)
+                            } else {
+                                Text(item.title)
+                            }
                         }
+                        .disabled(true)
+                    case .action:
+                        Button {
+                            item.action()
+                        } label: {
+                            if let icon = item.icon {
+                                Label(item.title, systemImage: icon)
+                            } else if item.isChecked == true {
+                                Label(item.title, systemImage: "checkmark")
+                            } else {
+                                Text(item.title)
+                            }
+                        }
+                        .disabled(!item.isEnabled)
                     }
-                    .disabled(!item.isEnabled)
                 }
             }
         }

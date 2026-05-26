@@ -456,6 +456,23 @@ final class EditorCoordinator: BonsplitDelegate, @unchecked Sendable {
         controller.selectTab(clipID)
     }
 
+    /// Switches to the tab and selects + scrolls to the given content range (global search).
+    @MainActor
+    func revealMatch(tabStoreID: UUID, range: NSRange) {
+        guard let bonsplitID = tabIDMap[tabStoreID] else { return }
+        controller.selectTab(bonsplitID)
+        guard let state = editorStates[bonsplitID] else { return }
+
+        let textView = state.textView
+        let length = (textView.string as NSString).length
+        let location = min(range.location, length)
+        let clamped = NSRange(location: location, length: min(range.length, length - location))
+
+        textView.setSelectedRange(clamped)
+        textView.scrollRangeToVisible(clamped)
+        textView.window?.makeFirstResponder(textView)
+    }
+
     // MARK: - BonsplitDelegate
 
     func splitTabBar(
@@ -637,7 +654,56 @@ final class EditorCoordinator: BonsplitDelegate, @unchecked Sendable {
             })
         }
 
+        appendStats(for: tabData, to: &items)
+
         return items
+    }
+
+    /// Appends a non-interactive statistics section (format, counts, reading time, size).
+    private func appendStats(for tab: TabData, to items: inout [TabContextMenuItem]) {
+        let stats = TabStats.compute(content: tab.content)
+
+        items.append(.separator)
+        items.append(.info(
+            String(localized: "tab.stats.format", defaultValue: "Format: \(TabStats.displayName(forLanguage: tab.language))"),
+            icon: "doc.text"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.words", defaultValue: "Words: \(stats.words.formatted())"),
+            icon: "textformat"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.characters_with_spaces", defaultValue: "Characters with spaces: \(stats.charactersWithSpaces.formatted())"),
+            icon: "character"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.characters_without_spaces", defaultValue: "Characters without spaces: \(stats.charactersWithoutSpaces.formatted())"),
+            icon: "character.textbox"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.sentences", defaultValue: "Sentences: \(stats.sentences.formatted())"),
+            icon: "text.quote"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.paragraphs", defaultValue: "Paragraphs: \(stats.paragraphs.formatted())"),
+            icon: "paragraphsign"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.lines", defaultValue: "Lines: \(stats.lines.formatted())"),
+            icon: "line.3.horizontal"
+        ))
+        items.append(.info(
+            String(localized: "tab.stats.reading_time", defaultValue: "Reading time: \(stats.readingTimeText)"),
+            icon: "clock"
+        ))
+        if let fileURL = tab.fileURL,
+           let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+            let formattedSize = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+            items.append(.info(
+                String(localized: "tab.stats.file_size", defaultValue: "Size: \(formattedSize)"),
+                icon: "internaldrive"
+            ))
+        }
     }
 
     // MARK: - Tab list for menu
