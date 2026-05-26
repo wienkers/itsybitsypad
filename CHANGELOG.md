@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.16.0
+
+Changes:
+- Removed the experimental Labs tab and Even G2 sync
+
+Fixes:
+- Always on top now persists between restarts (#105)
+- Enlarged the click area of the new-tab + button (#100)
+
 ## 1.15.0
 
 Features:
