@@ -6,9 +6,6 @@ Features:
 - Search across all open tabs with ⇧⌘F or the toolbar search icon
 - Tab statistics in the right-click menu – word, character, sentence, paragraph and line counts, reading time and file size
 
-Changes:
-- Removed the experimental Labs tab and Even G2 sync
-
 Fixes:
 - Files opened from the file browser now open in Itsypad for all supported formats instead of an external app
 - Always on top now persists between restarts (#105)
