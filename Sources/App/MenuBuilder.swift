@@ -266,17 +266,31 @@ class MenuBuilder {
 
         menu.addItem(.separator())
 
-        let nextTabItem = NSMenuItem(title: String(localized: "menu.view.next_tab", defaultValue: "Next tab"), action: #selector(AppDelegate.nextTabAction), keyEquivalent: "]")
+        // Tab switching: ⌃⌘J / ⌃⌘L (l = next, j = previous – matches the ikjl scheme).
+        let nextTabItem = NSMenuItem(title: String(localized: "menu.view.next_tab", defaultValue: "Next tab"), action: #selector(AppDelegate.nextTabAction), keyEquivalent: "l")
         nextTabItem.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
-        nextTabItem.keyEquivalentModifierMask = [.command, .shift]
+        nextTabItem.keyEquivalentModifierMask = [.control, .command]
         nextTabItem.target = target
         menu.addItem(nextTabItem)
 
-        let prevTabItem = NSMenuItem(title: String(localized: "menu.view.previous_tab", defaultValue: "Previous tab"), action: #selector(AppDelegate.previousTabAction), keyEquivalent: "[")
+        let prevTabItem = NSMenuItem(title: String(localized: "menu.view.previous_tab", defaultValue: "Previous tab"), action: #selector(AppDelegate.previousTabAction), keyEquivalent: "j")
         prevTabItem.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
-        prevTabItem.keyEquivalentModifierMask = [.command, .shift]
+        prevTabItem.keyEquivalentModifierMask = [.control, .command]
         prevTabItem.target = target
         menu.addItem(prevTabItem)
+
+        // Move focus between split panes: ⌃⌘I (above) / ⌃⌘K (below).
+        let focusPaneUpItem = NSMenuItem(title: String(localized: "menu.view.focus_pane_up", defaultValue: "Focus pane above"), action: #selector(AppDelegate.focusPaneUpAction), keyEquivalent: "i")
+        focusPaneUpItem.image = NSImage(systemSymbolName: "arrow.up.square", accessibilityDescription: nil)
+        focusPaneUpItem.keyEquivalentModifierMask = [.control, .command]
+        focusPaneUpItem.target = target
+        menu.addItem(focusPaneUpItem)
+
+        let focusPaneDownItem = NSMenuItem(title: String(localized: "menu.view.focus_pane_down", defaultValue: "Focus pane below"), action: #selector(AppDelegate.focusPaneDownAction), keyEquivalent: "k")
+        focusPaneDownItem.image = NSImage(systemSymbolName: "arrow.down.square", accessibilityDescription: nil)
+        focusPaneDownItem.keyEquivalentModifierMask = [.control, .command]
+        focusPaneDownItem.target = target
+        menu.addItem(focusPaneDownItem)
 
         menu.addItem(.separator())
 

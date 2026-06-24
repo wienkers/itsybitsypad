@@ -402,7 +402,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.tabbingMode = .disallowed
-        panel.isMovableByWindowBackground = true   // draggable without a title bar
+        // Note: do NOT set isMovableByWindowBackground – it swallows the mouse-drag that
+        // Bonsplit uses to reorder tabs. Move the window via the (toggleable) title bar.
         panel.isFloatingPanel = false
         panel.animationBehavior = .none   // instant show/hide – no fade flash when refocusing
         // Float above normal windows. Combined with the collection behavior below and
@@ -799,6 +800,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         editorCoordinator?.selectPreviousTab()
     }
 
+    @objc func focusPaneUpAction() {
+        editorCoordinator?.focusPaneUp()
+    }
+
+    @objc func focusPaneDownAction() {
+        editorCoordinator?.focusPaneDown()
+    }
+
     private func installTabSwitchMonitor() {
         tabSwitchMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self,
@@ -807,16 +816,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
 
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-            // ⌃Tab / ⌃⇧Tab
-            if event.keyCode == 48, flags.contains(.control) {
-                if flags.contains(.shift) {
-                    self.editorCoordinator?.selectPreviousTab()
-                } else {
-                    self.editorCoordinator?.selectNextTab()
-                }
-                return nil
-            }
-
             // ⌃D – close the current tab (it autosaves first). Overrides the emacs
             // delete-forward binding inside the text view.
             if flags == [.control], event.charactersIgnoringModifiers == "d" {
@@ -824,20 +823,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
                 return nil
             }
 
-            // ⇧⌘] / ⇧⌘[ – matches Safari and iTerm. Handled here rather than relying on the
-            // menu key-equivalent, which matches unreliably for shifted punctuation
-            // (Shift turns "]" into "}"). charactersIgnoringModifiers keeps Shift applied,
-            // so we match on "}"/"{" directly. Local monitors run before key-equivalent
-            // dispatch, so returning nil prevents the menu item from also firing.
+            // ⇧⌘ navigation: ikjl move the insertion point like arrow keys; | / _ split.
+            // (Tab switching and pane focus are ⌃⌘J/L and ⌃⌘I/K – handled as menu items.)
             if flags.contains(.command), flags.contains(.shift),
                !flags.contains(.control), !flags.contains(.option) {
                 switch event.charactersIgnoringModifiers {
-                case "}":
-                    self.editorCoordinator?.selectNextTab()
-                    return nil
-                case "{":
-                    self.editorCoordinator?.selectPreviousTab()
-                    return nil
                 // ikjl as arrow keys: move the insertion point in the focused text view.
                 case "I":
                     return NSApp.sendAction(#selector(NSResponder.moveUp(_:)), to: nil, from: nil) ? nil : event

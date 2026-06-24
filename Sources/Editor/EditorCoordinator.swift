@@ -443,6 +443,16 @@ final class EditorCoordinator: BonsplitDelegate, @unchecked Sendable {
     }
 
     @MainActor
+    func focusPaneUp() {
+        controller.navigateFocus(direction: .up)
+    }
+
+    @MainActor
+    func focusPaneDown() {
+        controller.navigateFocus(direction: .down)
+    }
+
+    @MainActor
     func selectTab(atIndex index: Int) {
         guard let focusedPaneId = controller.focusedPaneId else { return }
         let tabs = controller.tabs(inPane: focusedPaneId).filter { $0.id != clipboardTabID }

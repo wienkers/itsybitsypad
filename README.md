@@ -17,7 +17,7 @@ A tiny, fast scratchpad and clipboard manager for Mac. [itsypad.app](https://its
 > - **Floats over full-screen apps** — summon it as an overlay on the current Space (even inside another app's full-screen window) instead of jumping to a new Desktop.
 > - **Chrome-less HUD** — no title bar, window buttons, or toolbar; just tabs and text. Bring them back any time from the menu-bar icon.
 > - **Double-tap hotkeys** — double-tap **left ⌥** to show/hide; double-tap **⌘** to switch the active window between Itsy and the previously-active app (Itsy stays visible).
-> - **vim / tmux-style keys** — `⇧⌘I J K L` move the caret like arrows; `⇧⌘|` / `⇧⌘_` split right / down; `⌘⇧[` / `⌘⇧]` switch tabs; `⇧⌘D` delete line; `⌃D` close tab.
+> - **vim / tmux-style keys** — `⇧⌘I J K L` move the caret like arrows; `⌃⌘J` / `⌃⌘L` switch tabs and `⌃⌘I` / `⌃⌘K` move between split panes; `⇧⌘|` / `⇧⌘_` split right / down; `⇧⌘D` delete line; `⌃D` close tab.
 > - **Always autosaves** — every note saves every minute, when you switch to/from Itsy, and on close (no save prompt, no unsaved-dot).
 > - **Fully local** — iCloud sync removed; nothing leaves your Mac.
 > - **Builds without Xcode** — `./scripts/build-app.sh` produces `Itsypad.app` with just the Command Line Tools (Swift Package Manager).
@@ -114,8 +114,9 @@ Or download the latest DMG from [GitHub releases](https://github.com/nickustinov
 | ⌘O | Open file |
 | ⌘S | Save |
 | ⇧⌘S | Save as |
-| ⌃Tab | Next tab |
-| ⇧⌃Tab | Previous tab |
+| ⌃⌘L | Next tab |
+| ⌃⌘J | Previous tab |
+| ⌃⌘I / ⌃⌘K | Focus split pane above / below |
 | ⌘F | Find |
 | ⌥⌘F | Find and replace |
 | ⌘G | Find next |
