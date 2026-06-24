@@ -766,28 +766,12 @@ final class EditorCoordinator: BonsplitDelegate, @unchecked Sendable {
     }
 
     func confirmCloseTab(_ tab: TabData) -> Bool {
-        guard tab.isDirty else { return true }
-        // Unsaved scratch tab whose content is empty — no real changes to preserve.
-        if tab.fileURL == nil && tab.content.isEmpty { return true }
-
-        let alert = NSAlert()
-        alert.messageText = String(localized: "alert.save_changes.title", defaultValue: "Do you want to save changes to \"\(tab.name)\"?")
-        alert.informativeText = String(localized: "alert.save_changes.message", defaultValue: "Your changes will be lost if you don't save them.")
-        alert.addButton(withTitle: String(localized: "alert.save_changes.save", defaultValue: "Save"))
-        alert.addButton(withTitle: String(localized: "alert.save_changes.dont_save", defaultValue: "Don't save"))
-        alert.addButton(withTitle: String(localized: "alert.save_changes.cancel", defaultValue: "Cancel"))
-        alert.alertStyle = .warning
-
-        let response = alert.runModal()
-        switch response {
-        case .alertFirstButtonReturn:
+        // Autosave on close: persist file-backed changes to disk (no Save/Don't-save
+        // prompt), then always allow the close. Scratch tabs carry no file to write.
+        if tab.fileURL != nil, tab.isDirty {
             tabStore.saveFile(id: tab.id)
-            return true
-        case .alertSecondButtonReturn:
-            return true
-        default:
-            return false
         }
+        return true
     }
 
     // MARK: - File watching

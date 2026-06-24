@@ -489,6 +489,13 @@ extension CloudSyncEngine: CKSyncEngineDelegate {
     }
 
     private static let hasCloudKitEntitlement: Bool = {
+        #if SWIFT_PACKAGE
+        // The Swift Package Manager build (used for local, no-Xcode builds) is ad-hoc
+        // signed and carries no iCloud entitlement or provisioning profile, so
+        // CKContainer(identifier:) would trap. iCloud sync is unavailable there.
+        return false
+        #else
         return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+        #endif
     }()
 }

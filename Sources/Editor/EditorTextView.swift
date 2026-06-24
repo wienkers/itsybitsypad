@@ -212,6 +212,32 @@ final class EditorTextView: NSTextView {
         }
     }
 
+    // MARK: - Line editing
+
+    /// Delete the line(s) spanned by the selection, including the trailing newline.
+    /// Bound to ⇧⌘D. Goes through shouldChangeText/didChangeText so undo and syntax
+    /// highlighting update correctly.
+    @objc func deleteCurrentLine(_ sender: Any?) {
+        let ns = string as NSString
+        guard ns.length > 0 else { return }
+        var lineRange = ns.lineRange(for: selectedRange())
+
+        // If this is the last line with no trailing newline, also remove the newline that
+        // precedes it so we don't leave a dangling blank line above.
+        if NSMaxRange(lineRange) == ns.length,
+           lineRange.location > 0,
+           ns.character(at: lineRange.location - 1) == 0x0A {
+            lineRange = NSRange(location: lineRange.location - 1, length: lineRange.length + 1)
+        }
+
+        guard shouldChangeText(in: lineRange, replacementString: "") else { return }
+        textStorage?.replaceCharacters(in: lineRange, with: "")
+        didChangeText()
+        let caret = min(lineRange.location, (string as NSString).length)
+        setSelectedRange(NSRange(location: caret, length: 0))
+        scrollRangeToVisible(selectedRange())
+    }
+
     // MARK: - Typing helpers
 
     override func insertText(_ insertString: Any, replacementRange: NSRange) {

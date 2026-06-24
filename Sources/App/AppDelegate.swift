@@ -7,6 +7,33 @@ private class EditorPanel: NSPanel {
         get { false }
         set { }
     }
+
+    // Right-click anywhere the content doesn't handle → window-chrome menu (restore the
+    // hidden title-bar buttons). Best-effort; the menu-bar item is the reliable path.
+    override func rightMouseDown(with event: NSEvent) {
+        if let delegate = NSApp.delegate as? AppDelegate {
+            delegate.showWindowContextMenu(for: event, in: self)
+        } else {
+            super.rightMouseDown(with: event)
+        }
+    }
+}
+
+/// Content container whose safe-area insets can be forced to zero, so in compact (no
+/// title bar) mode the content fills to the very top edge instead of leaving the empty
+/// strip the title bar's safe area would otherwise reserve.
+private class ContentContainerView: NSView {
+    var ignoresTopSafeArea = true {
+        didSet {
+            guard ignoresTopSafeArea != oldValue else { return }
+            needsLayout = true
+            subviews.forEach { $0.needsLayout = true }
+        }
+    }
+
+    override var safeAreaInsets: NSEdgeInsets {
+        ignoresTopSafeArea ? NSEdgeInsets() : super.safeAreaInsets
+    }
 }
 
 private class FileDropView: NSView {
@@ -72,7 +99,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     private var isPinned = UserDefaults.standard.bool(forKey: "alwaysOnTop") {
         didSet { UserDefaults.standard.set(isPinned, forKey: "alwaysOnTop") }
     }
+    private var windowButtonsVisible = false
+    private weak var editorContentContainer: ContentContainerView?
     private var markdownObserver: Any?
+    private var autosaveTimer: Timer?
+    private var windowKeyObservers: [Any] = []
     private var showMarkdownPreview = false
     private var pendingFileURLs: [URL] = []
     private var tabSwitchMonitor: Any?
@@ -88,6 +119,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         HotkeyManager.shared.register()
 
         installTabSwitchMonitor()
+        setupAutosave()
 
         // Start clipboard monitoring if enabled
         if SettingsStore.shared.clipboardEnabled {
@@ -188,15 +220,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         guard !SettingsStore.shared.showInDock else { return }
         guard windowWasVisible, let window = editorWindow else { return }
         guard window.isVisible, !window.isMiniaturized else { return }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard let window = editorWindow else { return false }
         windowWasVisible = true
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
         updateDockVisibility()
         return false
     }
@@ -227,8 +259,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
             return
         }
         windowWasVisible = true
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
         updateDockVisibility()
         editorCoordinator?.openFile(url: url)
     }
@@ -289,7 +321,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
                 else if mod.contains("command") { symbol = "⌘" }
                 else { symbol = "" }
                 let side = mod.hasPrefix("left-") ? " L" : mod.hasPrefix("right-") ? " R" : ""
-                let hint = "  \(symbol)\(symbol)\(symbol)\(side)"
+                let hint = "  \(String(repeating: symbol, count: modifierTapCount))\(side)"
                 let attributed = NSMutableAttributedString(string: toggleTitle)
                 attributed.append(NSAttributedString(string: hint, attributes: [
                     .foregroundColor: NSColor.tertiaryLabelColor,
@@ -308,6 +340,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        let buttonsItem = NSMenuItem(title: windowButtonsMenuTitle(), action: #selector(toggleWindowButtons), keyEquivalent: "")
+        buttonsItem.image = NSImage(systemSymbolName: "macwindow.on.rectangle", accessibilityDescription: nil)
+        buttonsItem.target = self
+        menu.addItem(buttonsItem)
 
         #if !APPSTORE
         let updateItem = NSMenuItem(title: String(localized: "statusbar.check_for_updates", defaultValue: "Check for updates..."), action: #selector(checkForUpdates), keyEquivalent: "")
@@ -339,7 +376,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         hostingView.autoresizingMask = [.width, .height]
 
         // Wrap hosting view in a container so FileDropView isn't a direct subview of NSHostingView
-        let contentContainer = NSView()
+        let contentContainer = ContentContainerView()
+        editorContentContainer = contentContainer
         let dropView = FileDropView(frame: .zero)
         dropView.autoresizingMask = [.width, .height]
         contentContainer.addSubview(dropView)
@@ -353,35 +391,57 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
 
         let panel = EditorPanel(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            // .nonactivatingPanel lets the panel take keyboard focus WITHOUT activating
+            // the app, so summoning it never pulls us off another app's full-screen Space.
+            // No .closable/.miniaturizable: this is a chrome-less HUD overlay.
+            styleMask: [.titled, .resizable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         panel.title = ""
         panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
         panel.tabbingMode = .disallowed
+        panel.isMovableByWindowBackground = true   // draggable without a title bar
         panel.isFloatingPanel = false
-        panel.level = isPinned ? .floating : .normal
-        panel.collectionBehavior = [.fullScreenPrimary, .moveToActiveSpace]
+        panel.animationBehavior = .none   // instant show/hide – no fade flash when refocusing
+        // Float above normal windows. Combined with the collection behavior below and
+        // orderFrontRegardless() (see revealEditorWindow), this overlays the panel on
+        // another app's full-screen Space instead of switching Spaces. Always floating so
+        // the overlay works regardless of the (now cosmetic) Always-on-Top toggle.
+        panel.level = .floating
+        // .canJoinAllSpaces keeps the panel on whatever Space is active (including a
+        // full-screen one); .fullScreenAuxiliary permits it to draw over a full-screen app.
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // Hide the traffic-light buttons – chrome-less HUD.
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.minSize = NSSize(width: 320, height: 400)
         panel.contentView = splitVC.view
         panel.isReleasedWhenClosed = false
         panel.center()
         panel.setFrameAutosaveName("EditorWindow")
 
-        let toolbar = NSToolbar(identifier: "EditorToolbar")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        panel.toolbar = toolbar
-
         editorWindow = panel
 
         applyWindowAppearance()
 
-        // Show window on launch
+        // Show window on launch (as a floating overlay; does not switch Spaces).
+        revealEditorWindow()
+    }
+
+    /// Reveal the editor panel as a floating overlay on the CURRENT Space – including over
+    /// another app's full-screen Space – without switching Spaces. orderFrontRegardless()
+    /// plus makeKey() (instead of NSApp.activate(ignoringOtherApps:)) is what keeps us on
+    /// the current Space; the .nonactivatingPanel style lets the panel take keyboard focus
+    /// without activating the app. Menu key-equivalents still work because the panel is key.
+    private func revealEditorWindow() {
+        guard let window = editorWindow else { return }
         windowWasVisible = true
-        panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
+        updateDockVisibility()
     }
 
     private func applyWindowAppearance() {
@@ -397,15 +457,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     func toggleWindow() {
         guard let window = editorWindow else { return }
 
-        if window.isKeyWindow {
+        // Option double-tap is a pure open/close on visibility: if the panel is on screen
+        // (focused or not) it hides; otherwise it shows and takes focus.
+        if window.isVisible {
             windowWasVisible = false
             window.orderOut(nil)
+            updateDockVisibility()
         } else {
-            windowWasVisible = true
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            revealEditorWindow()
         }
-        updateDockVisibility()
     }
 
     func toggleClipboard() {
@@ -416,11 +476,96 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
             window.orderOut(nil)
         } else {
             windowWasVisible = true
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            window.orderFrontRegardless()
+            window.makeKey()
             editorCoordinator?.selectClipboardTab()
         }
         updateDockVisibility()
+    }
+
+    /// Double-tap Command. If Itsy holds keyboard focus, hand it back to the previously
+    /// active app while keeping the panel visible; otherwise (re)focus Itsy. When Itsy is
+    /// not focused this matches the Option double-tap (both refocus Itsy).
+    func commandTapAction() {
+        guard let window = editorWindow else { return }
+        if window.isKeyWindow {
+            returnFocusToPreviousApp()
+        } else {
+            revealEditorWindow()
+        }
+    }
+
+    /// Hand keyboard focus back to the app that was active before Itsy, without hiding the
+    /// (floating) panel. Re-activating that app can be a no-op if it was already frontmost,
+    /// so we also order the panel out and straight back in *without* makeKey(): that drops
+    /// key focus to the active app's window while keeping the panel on screen.
+    private func returnFocusToPreviousApp() {
+        guard let window = editorWindow else { return }
+        if let bid = lastFrontmostBundleID,
+           let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first {
+            app.activate()
+        }
+        window.orderOut(nil)
+        window.orderFrontRegardless()
+    }
+
+    // MARK: - Window chrome (toolbar + title-bar buttons)
+
+    /// Apply the current chrome state. Compact (default): no toolbar, transparent title
+    /// bar, hidden traffic-light buttons, content filling to the top edge. Full: the
+    /// toolbar (sidebar / new / open / save / … icons) and traffic-light buttons return.
+    private func applyChrome() {
+        guard let window = editorWindow else { return }
+        let show = windowButtonsVisible
+
+        if show {
+            // Drop .fullSizeContentView so the content sits BELOW the toolbar instead of
+            // the toolbar overlaying the tabs.
+            window.styleMask.remove(.fullSizeContentView)
+            if window.toolbar == nil { window.toolbar = makeEditorToolbar() }
+        } else {
+            window.styleMask.insert(.fullSizeContentView)
+            window.toolbar = nil
+        }
+        window.standardWindowButton(.closeButton)?.isHidden = !show
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = !show
+        window.standardWindowButton(.zoomButton)?.isHidden = !show
+        window.titlebarAppearsTransparent = !show
+        editorContentContainer?.ignoresTopSafeArea = !show
+        window.contentView?.layoutSubtreeIfNeeded()
+    }
+
+    private func makeEditorToolbar() -> NSToolbar {
+        let toolbar = NSToolbar(identifier: "EditorToolbar")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        // Suppress the toolbar's native right-click menu (Icon and Text / Text Only /
+        // Customize…) – never used and it blocked re-hiding the toolbar.
+        toolbar.allowsUserCustomization = false
+        if #available(macOS 15.0, *) {
+            toolbar.allowsDisplayModeCustomization = false
+        }
+        return toolbar
+    }
+
+    @objc func toggleWindowButtons() {
+        windowButtonsVisible.toggle()
+        applyChrome()
+    }
+
+    private func windowButtonsMenuTitle() -> String {
+        windowButtonsVisible
+            ? String(localized: "menu.window.hide_chrome", defaultValue: "Hide toolbar & buttons")
+            : String(localized: "menu.window.show_chrome", defaultValue: "Show toolbar & buttons")
+    }
+
+    func showWindowContextMenu(for event: NSEvent, in window: NSWindow) {
+        guard let contentView = window.contentView else { return }
+        let menu = NSMenu()
+        let item = NSMenuItem(title: windowButtonsMenuTitle(), action: #selector(toggleWindowButtons), keyEquivalent: "")
+        item.target = self
+        menu.addItem(item)
+        NSMenu.popUpContextMenu(menu, with: event, for: contentView)
     }
 
     private func updateDockVisibility() {
@@ -593,6 +738,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         editorCoordinator?.saveFileAs()
     }
 
+    // MARK: - Autosave
+
+    /// Autosave triggers: every minute, and whenever the editor window gains or loses key
+    /// focus (i.e. you switch to or from Itsy). Closing a tab autosaves via confirmCloseTab.
+    private func setupAutosave() {
+        autosaveTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.autosaveAll() }
+        }
+        let nc = NotificationCenter.default
+        for name in [NSWindow.didResignKeyNotification, NSWindow.didBecomeKeyNotification] {
+            let obs = nc.addObserver(forName: name, object: editorWindow, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.autosaveAll() }
+            }
+            windowKeyObservers.append(obs)
+        }
+    }
+
+    private func autosaveAll() {
+        editorCoordinator?.saveActiveTabCursor()
+        TabStore.shared.saveAll()
+    }
+
     @objc func findAction(_ sender: NSMenuItem) {
         guard let textView = editorCoordinator?.activeTextView() else { return }
 
@@ -635,16 +802,64 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     private func installTabSwitchMonitor() {
         tabSwitchMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self,
-                  event.keyCode == 48, // Tab
-                  event.modifierFlags.contains(.control),
                   let window = event.window,
                   window === self.editorWindow else { return event }
-            if event.modifierFlags.contains(.shift) {
-                self.editorCoordinator?.selectPreviousTab()
-            } else {
-                self.editorCoordinator?.selectNextTab()
+
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            // ⌃Tab / ⌃⇧Tab
+            if event.keyCode == 48, flags.contains(.control) {
+                if flags.contains(.shift) {
+                    self.editorCoordinator?.selectPreviousTab()
+                } else {
+                    self.editorCoordinator?.selectNextTab()
+                }
+                return nil
             }
-            return nil
+
+            // ⌃D – close the current tab (it autosaves first). Overrides the emacs
+            // delete-forward binding inside the text view.
+            if flags == [.control], event.charactersIgnoringModifiers == "d" {
+                self.editorCoordinator?.closeCurrentTab()
+                return nil
+            }
+
+            // ⇧⌘] / ⇧⌘[ – matches Safari and iTerm. Handled here rather than relying on the
+            // menu key-equivalent, which matches unreliably for shifted punctuation
+            // (Shift turns "]" into "}"). charactersIgnoringModifiers keeps Shift applied,
+            // so we match on "}"/"{" directly. Local monitors run before key-equivalent
+            // dispatch, so returning nil prevents the menu item from also firing.
+            if flags.contains(.command), flags.contains(.shift),
+               !flags.contains(.control), !flags.contains(.option) {
+                switch event.charactersIgnoringModifiers {
+                case "}":
+                    self.editorCoordinator?.selectNextTab()
+                    return nil
+                case "{":
+                    self.editorCoordinator?.selectPreviousTab()
+                    return nil
+                // ikjl as arrow keys: move the insertion point in the focused text view.
+                case "I":
+                    return NSApp.sendAction(#selector(NSResponder.moveUp(_:)), to: nil, from: nil) ? nil : event
+                case "K":
+                    return NSApp.sendAction(#selector(NSResponder.moveDown(_:)), to: nil, from: nil) ? nil : event
+                case "J":
+                    return NSApp.sendAction(#selector(NSResponder.moveLeft(_:)), to: nil, from: nil) ? nil : event
+                case "L":
+                    return NSApp.sendAction(#selector(NSResponder.moveRight(_:)), to: nil, from: nil) ? nil : event
+                // Split panes (shifted punctuation matched here for reliability).
+                case "|":
+                    self.editorCoordinator?.splitRight()
+                    return nil
+                case "_":
+                    self.editorCoordinator?.splitDown()
+                    return nil
+                default:
+                    break
+                }
+            }
+
+            return event
         }
     }
 
@@ -681,8 +896,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     }
 
     @objc func togglePin() {
+        // The HUD overlay is always at .floating so it can sit over full-screen apps; keep
+        // it floating regardless of the toggle. (isPinned is still tracked/persisted.)
         isPinned.toggle()
-        editorWindow?.level = isPinned ? .floating : .normal
+        editorWindow?.level = .floating
     }
 
     @objc func togglePreviewAction() {
@@ -709,20 +926,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
     }
 
     private func updateMarkdownToolbarItem(isMarkdown: Bool, isPreviewing: Bool) {
-        guard let window = editorWindow else { return }
-
-        if isMarkdown != showMarkdownPreview {
-            showMarkdownPreview = isMarkdown
-            let toolbar = NSToolbar(identifier: "EditorToolbar")
-            toolbar.delegate = self
-            toolbar.displayMode = .iconOnly
-            window.toolbar = toolbar
-        } else if isMarkdown, let item = window.toolbar?.items.first(where: { $0.itemIdentifier == .markdownPreview }) {
-            item.image = NSImage(
-                systemSymbolName: isPreviewing ? "rectangle.split.2x1.fill" : "rectangle.split.2x1",
-                accessibilityDescription: "Preview"
-            )
-        }
+        // HUD mode has no toolbar; just track markdown state for menu validation.
+        showMarkdownPreview = isMarkdown
     }
 
     private func buildTabSwitcherMenu() -> NSMenu {
@@ -756,8 +961,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         guard let window = editorWindow else { return }
         if !window.isVisible {
             windowWasVisible = true
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            window.orderFrontRegardless()
+            window.makeKey()
             updateDockVisibility()
         }
 

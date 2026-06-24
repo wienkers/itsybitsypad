@@ -586,6 +586,16 @@ class TabStore: ObservableObject {
         }
     }
 
+    /// Autosave everything: write any dirty file-backed tabs to disk and snapshot the
+    /// session (which captures scratch-tab content). Cheap when nothing is dirty.
+    func saveAll() {
+        let dirtyFileIDs = tabs.filter { $0.fileURL != nil && $0.isDirty }.map { $0.id }
+        for id in dirtyFileIDs {
+            saveFile(id: id)
+        }
+        saveSession()
+    }
+
     private func restoreSession() {
         guard let data = try? Data(contentsOf: sessionURL),
               let session = try? JSONDecoder().decode(SessionData.self, from: data)

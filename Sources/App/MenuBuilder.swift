@@ -177,11 +177,18 @@ class MenuBuilder {
 
         menu.addItem(.separator())
 
-        let toggleChecklistItem = NSMenuItem(title: String(localized: "menu.edit.toggle_checklist", defaultValue: "Toggle checklist"), action: #selector(AppDelegate.toggleChecklistAction), keyEquivalent: "l")
+        let toggleChecklistItem = NSMenuItem(title: String(localized: "menu.edit.toggle_checklist", defaultValue: "Toggle checklist"), action: #selector(AppDelegate.toggleChecklistAction), keyEquivalent: "m")
         toggleChecklistItem.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: nil)
         toggleChecklistItem.keyEquivalentModifierMask = [.command, .shift]
         toggleChecklistItem.target = target
         menu.addItem(toggleChecklistItem)
+
+        // Delete the current line (⇧⌘D). No target → sent to the first responder
+        // (the editor text view, which implements deleteCurrentLine:).
+        let deleteLineItem = NSMenuItem(title: String(localized: "menu.edit.delete_line", defaultValue: "Delete line"), action: Selector(("deleteCurrentLine:")), keyEquivalent: "d")
+        deleteLineItem.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        deleteLineItem.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(deleteLineItem)
 
         let moveUpItem = NSMenuItem(title: String(localized: "menu.edit.move_line_up", defaultValue: "Move line up"), action: #selector(AppDelegate.moveLineUpAction), keyEquivalent: "")
         moveUpItem.image = NSImage(systemSymbolName: "arrow.up", accessibilityDescription: nil)
@@ -273,15 +280,17 @@ class MenuBuilder {
 
         menu.addItem(.separator())
 
-        let splitRightItem = NSMenuItem(title: String(localized: "menu.view.split_right", defaultValue: "Split right"), action: #selector(AppDelegate.splitRight), keyEquivalent: "D")
+        // ⇧⌘| (moved off ⇧⌘D, now Delete line). The shifted punctuation is matched in the
+        // key monitor for reliability; the equivalent here is mainly for display.
+        let splitRightItem = NSMenuItem(title: String(localized: "menu.view.split_right", defaultValue: "Split right"), action: #selector(AppDelegate.splitRight), keyEquivalent: "|")
         splitRightItem.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: nil)
         splitRightItem.keyEquivalentModifierMask = [.command, .shift]
         splitRightItem.target = target
         menu.addItem(splitRightItem)
 
-        let splitDownItem = NSMenuItem(title: String(localized: "menu.view.split_down", defaultValue: "Split down"), action: #selector(AppDelegate.splitDown), keyEquivalent: "d")
+        let splitDownItem = NSMenuItem(title: String(localized: "menu.view.split_down", defaultValue: "Split down"), action: #selector(AppDelegate.splitDown), keyEquivalent: "_")
         splitDownItem.image = NSImage(systemSymbolName: "rectangle.split.1x2", accessibilityDescription: nil)
-        splitDownItem.keyEquivalentModifierMask = [.command, .control, .shift]
+        splitDownItem.keyEquivalentModifierMask = [.command, .shift]
         splitDownItem.target = target
         menu.addItem(splitDownItem)
 

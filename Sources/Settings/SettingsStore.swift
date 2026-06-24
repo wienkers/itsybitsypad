@@ -336,7 +336,11 @@ class SettingsStore: ObservableObject {
         let savedLineSpacing = defaults.double(forKey: "lineSpacing")
         lineSpacing = savedLineSpacing > 0 ? savedLineSpacing : 1.0
         letterSpacing = defaults.double(forKey: "letterSpacing")
+        #if SWIFT_PACKAGE
+        icloudSync = false   // iCloud sync is unavailable in the no-Xcode build (see CloudSyncEngine)
+        #else
         icloudSync = defaults.object(forKey: "icloudSync") as? Bool ?? true
+        #endif
         clipboardEnabled = defaults.object(forKey: "clipboardEnabled") as? Bool ?? true
         if let data = defaults.data(forKey: shortcutKeysKey),
            let keys = try? JSONDecoder().decode(ShortcutKeys.self, from: data) {

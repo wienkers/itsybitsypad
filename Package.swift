@@ -14,7 +14,7 @@ let package = Package(
                 .product(name: "Bonsplit", package: "Bonsplit"),
             ],
             path: "Sources",
-            exclude: ["Info.plist", "itsypad.entitlements"],
+            exclude: ["Info.plist", "itsypad.entitlements", "itsypad-direct.entitlements"],
             resources: [.process("Resources")],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", "Sources/Info.plist"])

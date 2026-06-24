@@ -107,6 +107,7 @@ struct GeneralSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                #if !SWIFT_PACKAGE
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle(String(localized: "settings.general.icloud_sync", defaultValue: "iCloud sync"), isOn: Binding(
                         get: { store.icloudSync },
@@ -122,6 +123,7 @@ struct GeneralSettingsView: View {
                             .onReceive(timer) { now = $0 }
                     }
                 }
+                #endif
             }
 
             Section(String(localized: "settings.general.about", defaultValue: "About")) {

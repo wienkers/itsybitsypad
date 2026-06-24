@@ -1,4 +1,4 @@
-# Itsypad
+# itsybitsypad
 
 [![Tests](https://github.com/nickustinov/itsypad-macos/actions/workflows/tests.yml/badge.svg)](https://github.com/nickustinov/itsypad-macos/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/nickustinov/itsypad-macos)](https://github.com/nickustinov/itsypad-macos/releases/latest)
@@ -10,6 +10,18 @@
 
 A tiny, fast scratchpad and clipboard manager for Mac. [itsypad.app](https://itsypad.app)
 
+> ### itsy bitsy — an even more minimal fork
+>
+> A personal fork of [Itsypad](https://github.com/nickustinov/itsypad-macos), stripped down to a keyboard-driven scratchpad that's always one keypress away. What's different:
+>
+> - **Floats over full-screen apps** — summon it as an overlay on the current Space (even inside another app's full-screen window) instead of jumping to a new Desktop.
+> - **Chrome-less HUD** — no title bar, window buttons, or toolbar; just tabs and text. Bring them back any time from the menu-bar icon.
+> - **Double-tap hotkeys** — double-tap **left ⌥** to show/hide; double-tap **⌘** to switch the active window between Itsy and the previously-active app (Itsy stays visible).
+> - **vim / tmux-style keys** — `⇧⌘I J K L` move the caret like arrows; `⇧⌘|` / `⇧⌘_` split right / down; `⌘⇧[` / `⌘⇧]` switch tabs; `⇧⌘D` delete line; `⌃D` close tab.
+> - **Always autosaves** — every note saves every minute, when you switch to/from Itsy, and on close (no save prompt, no unsaved-dot).
+> - **Fully local** — iCloud sync removed; nothing leaves your Mac.
+> - **Builds without Xcode** — `./scripts/build-app.sh` produces `Itsypad.app` with just the Command Line Tools (Swift Package Manager).
+
 [![Download on the Mac App Store](https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsypad/id6758999332)
 
 ![Itsypad screenshot](itsypad-screenshot-v2.png)
@@ -20,7 +32,7 @@ A tiny, fast scratchpad and clipboard manager for Mac. [itsypad.app](https://its
 
 - **Text editor** — syntax highlighting, multi-tab, split view, find and replace, clickable links, lists and checklists
 - **Clipboard manager** — 1,000-item history, searchable, keyboard navigable, grid or panels layout, iCloud sync (text entries)
-- **Global hotkeys** — tap left ⌥ three times to show/hide, or define your own hotkey
+- **Global hotkeys** — double-tap left ⌥ to show/hide, double-tap ⌘ to toggle focus to/from Itsy, or define your own hotkey
 - **Lightweight** — nearly zero CPU and memory usage
 - **No AI, no telemetry** — your data stays on your machine
 - **Menu bar icon** — show or hide in menu bar
@@ -98,7 +110,7 @@ Or download the latest DMG from [GitHub releases](https://github.com/nickustinov
 | Shortcut | Action |
 |----------|--------|
 | ⌘T / ⌘N | New tab |
-| ⌘W | Close tab |
+| ⌘W / ⌃D | Close tab (autosaves) |
 | ⌘O | Open file |
 | ⌘S | Save |
 | ⇧⌘S | Save as |
@@ -111,13 +123,16 @@ Or download the latest DMG from [GitHub releases](https://github.com/nickustinov
 | ⌘E | Use selection for find |
 | ⌘D | Duplicate line |
 | ⌘Return | Toggle checkbox |
-| ⇧⌘L | Toggle checklist |
+| ⇧⌘M | Toggle checklist |
+| ⇧⌘D | Delete line |
 | ⌥⌘↑ | Move line up |
 | ⌥⌘↓ | Move line down |
+| ⇧⌘I / ⇧⌘K | Move caret up / down |
+| ⇧⌘J / ⇧⌘L | Move caret left / right |
 | ⌘1–9 | Switch to tab by position |
 | ⇧⌘T | Always on top |
-| ⇧⌘D | Split right |
-| ⇧⌃⌘D | Split down |
+| ⇧⌘\| | Split right |
+| ⇧⌘_ | Split down |
 | ⌘+ | Increase font size |
 | ⌘- | Decrease font size |
 | ⌘0 | Reset font size |

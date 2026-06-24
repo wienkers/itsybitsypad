@@ -49,7 +49,7 @@ struct ShortcutRecorderView: View {
                 }
             }
 
-            Text(String(localized: "shortcut.hint", defaultValue: "Record a key combination (e.g. ⌃⌥Space) or tap a modifier key 3 times for a triple-tap shortcut. Left and right modifier keys are distinguished."))
+            Text(String(localized: "shortcut.hint", defaultValue: "Record a key combination (e.g. ⌃⌥Space) or tap a modifier key twice for a double-tap shortcut. Left and right modifier keys are distinguished."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -113,15 +113,15 @@ class ShortcutRecorderNSView: NSView {
                     let now = Date()
                     var timestamps = self.tripleTapTimestamps[mod] ?? []
                     timestamps.append(now)
-                    timestamps = timestamps.filter { now.timeIntervalSince($0) < 0.5 }
+                    timestamps = timestamps.filter { now.timeIntervalSince($0) < modifierTapWindow }
                     self.tripleTapTimestamps[mod] = timestamps
 
-                    if timestamps.count >= 3 {
+                    if timestamps.count >= modifierTapCount {
                         self.tripleTapTimestamps[mod] = []
                         let symbol = self.modifierSymbol(mod)
                         let side = mod.hasPrefix("left-") ? "L" : "R"
                         let keys = ShortcutKeys(modifiers: 0, keyCode: 0, isTripleTap: true, tapModifier: mod)
-                        self.onShortcutRecorded?(keys, "\(symbol)\(symbol)\(symbol) \(side)")
+                        self.onShortcutRecorded?(keys, "\(String(repeating: symbol, count: modifierTapCount)) \(side)")
                         return nil
                     }
                 }

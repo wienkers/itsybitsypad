@@ -137,12 +137,8 @@ struct TabItemView: View {
     @ViewBuilder
     private var closeOrDirtyIndicator: some View {
         ZStack {
-            // Dirty indicator (shown when dirty and not hovering)
-            if tab.isDirty && !isHovered && !isCloseHovered {
-                Circle()
-                    .fill(TabBarColors.dirtyIndicator)
-                    .frame(width: TabBarMetrics.dirtyIndicatorSize, height: TabBarMetrics.dirtyIndicatorSize)
-            }
+            // Dirty indicator removed: autosave keeps every tab saved, so the dot was
+            // never accurate. The slot keeps its fixed size (below) for the close button.
 
             // Close button (shown on hover)
             if isHovered || isCloseHovered {

@@ -8,10 +8,10 @@ class HotkeyManager {
     private var hotkeyID: EventHotKeyID?
     private var clipboardHotkeyRef: EventHotKeyRef?
 
-    // Triple-tap tracking
+    // Multi-tap tracking (double-tap by default; see modifierTapCount)
     private var modifierPressTimestamps: [String: [Date]] = [:]
-    private let tripleTapWindow: TimeInterval = 0.5
     private var localEventMonitor: Any?
+    private var keyDownMonitor: Any?
 
     private init() {
         installCarbonHandler()
@@ -155,6 +155,18 @@ class HotkeyManager {
             self?.handleFlagsChanged(event)
             return event
         }
+
+        // Clean-tap detection: pressing any non-modifier key cancels in-progress taps, so a
+        // modifier used as part of a shortcut (e.g. ⌘C then ⌘V) is never read as a double-tap.
+        // This is what makes a double-tap of Command safe despite Command being a hot key.
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
+            self?.modifierPressTimestamps.removeAll()
+        }
+
+        keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.modifierPressTimestamps.removeAll()
+            return event
+        }
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
@@ -165,10 +177,10 @@ class HotkeyManager {
         let now = Date()
         var timestamps = modifierPressTimestamps[modifier] ?? []
         timestamps.append(now)
-        timestamps = timestamps.filter { now.timeIntervalSince($0) < tripleTapWindow }
+        timestamps = timestamps.filter { now.timeIntervalSince($0) < modifierTapWindow }
         modifierPressTimestamps[modifier] = timestamps
 
-        if timestamps.count >= 3 {
+        if timestamps.count >= modifierTapCount {
             modifierPressTimestamps[modifier] = []
 
             let baseModifier = modifier.replacingOccurrences(of: "left-", with: "").replacingOccurrences(of: "right-", with: "")
@@ -200,11 +212,26 @@ class HotkeyManager {
                 }
                 return
             }
+
+            // Double-tap Command (hardcoded, after the user-configured shortcuts so those
+            // win): focus toggle – if Itsy is focused, hand the keyboard back to the
+            // previously-active app while keeping Itsy visible; otherwise refocus Itsy.
+            if baseModifier == "command" {
+                DispatchQueue.main.async {
+                    if let delegate = NSApp.delegate as? AppDelegate {
+                        delegate.commandTapAction()
+                    }
+                }
+                return
+            }
         }
     }
 
     deinit {
         if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = keyDownMonitor {
             NSEvent.removeMonitor(monitor)
         }
     }
