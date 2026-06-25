@@ -484,14 +484,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSTool
         updateDockVisibility()
     }
 
-    /// Double-tap Command. If Itsy holds keyboard focus, hand it back to the previously
-    /// active app while keeping the panel visible; otherwise (re)focus Itsy. When Itsy is
-    /// not focused this matches the Option double-tap (both refocus Itsy).
+    /// Double-tap Command, scoped to whatever is already on screen – it never summons a
+    /// hidden panel (only the configured double-tap Option does that):
+    /// - Itsy is focused → hand keyboard focus back to the previously active app.
+    /// - Itsy is visible but not focused → make it the active window.
+    /// - Itsy is hidden → do nothing.
     func commandTapAction() {
         guard let window = editorWindow else { return }
         if window.isKeyWindow {
             returnFocusToPreviousApp()
-        } else {
+        } else if window.isVisible {
             revealEditorWindow()
         }
     }

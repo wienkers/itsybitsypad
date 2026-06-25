@@ -16,6 +16,11 @@ public final class BonsplitController {
     /// Configuration for behavior and appearance
     public var configuration: BonsplitConfiguration
 
+    /// Optional content rendered at the trailing (far-right) edge of each pane's tab bar.
+    /// The host app supplies a builder receiving the pane's ID; return any view (type-erased
+    /// so the package stays app-agnostic). When nil, nothing is shown.
+    public var tabBarTrailingAccessory: ((PaneID) -> AnyView)?
+
     // MARK: - Internal State
 
     internal var internalController: SplitViewController

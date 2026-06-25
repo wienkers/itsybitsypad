@@ -45,6 +45,14 @@ final class EditorCoordinator: BonsplitDelegate, @unchecked Sendable {
 
         controller.delegate = self
 
+        // Trailing tab-bar controls: toggle sidebar, markdown preview, search.
+        // Weak capture: the controller is owned by this coordinator, so a strong
+        // capture here would form a retain cycle.
+        controller.tabBarTrailingAccessory = { [weak self] _ in
+            guard let self else { return AnyView(EmptyView()) }
+            return AnyView(TabBarAccessoryView(coordinator: self))
+        }
+
         applyBonsplitTheme()
         restoreSession()
 

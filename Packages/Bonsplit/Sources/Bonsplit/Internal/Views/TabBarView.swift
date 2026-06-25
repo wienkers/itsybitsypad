@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Tab bar view with scrollable tabs, drag/drop support, and split buttons
+/// Tab bar view with scrollable tabs, drag/drop support, and an optional
+/// app-injected trailing accessory (see `BonsplitController.tabBarTrailingAccessory`).
 struct TabBarView: View {
     @Environment(BonsplitController.self) private var controller
     @Environment(SplitViewController.self) private var splitViewController
@@ -47,9 +48,6 @@ struct TabBarView: View {
                                 tabItem(for: tab, at: index)
                                     .id(tab.id)
                             }
-
-                            // New tab button
-                            newTabButton
 
                             // Drop zone at end of tabs
                             dropZoneAtEnd
@@ -103,9 +101,9 @@ struct TabBarView: View {
                 }
             }
 
-            // Split buttons
-            if showSplitButtons {
-                splitButtons
+            // Trailing accessory (app-injected: e.g. sidebar / markdown / search buttons)
+            if let accessory = controller.tabBarTrailingAccessory {
+                accessory(pane.id)
             }
         }
         .frame(height: TabBarMetrics.barHeight)
@@ -179,22 +177,6 @@ struct TabBarView: View {
         )
     }
 
-    // MARK: - New Tab Button
-
-    @ViewBuilder
-    private var newTabButton: some View {
-        Button {
-            controller.delegate?.splitTabBar(controller, didDoubleClickTabBarInPane: pane.id)
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(TabBarColors.inactiveText)
-                .frame(width: TabBarMetrics.tabHeight, height: TabBarMetrics.tabHeight)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Item Provider
 
     private func createItemProvider(for tab: TabItem) -> NSItemProvider {
@@ -244,35 +226,6 @@ struct TabBarView: View {
             .frame(width: TabBarMetrics.dropIndicatorWidth, height: TabBarMetrics.dropIndicatorHeight)
             .offset(x: -1)
             .transition(.scale.combined(with: .opacity))
-    }
-
-    // MARK: - Split Buttons
-
-    @ViewBuilder
-    private var splitButtons: some View {
-        HStack(spacing: 4) {
-            Button {
-                // 120fps animation handled by SplitAnimator
-                controller.splitPane(pane.id, orientation: .horizontal)
-            } label: {
-                Image(systemName: "square.split.2x1")
-                    .font(.system(size: 12))
-            }
-            .buttonStyle(.borderless)
-            .help("Split Right")
-
-            Button {
-                // 120fps animation handled by SplitAnimator
-                controller.splitPane(pane.id, orientation: .vertical)
-            } label: {
-                Image(systemName: "square.split.1x2")
-                    .font(.system(size: 12))
-            }
-            .buttonStyle(.borderless)
-            .help("Split Down")
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 8)
     }
 
     // MARK: - Fade Overlays
