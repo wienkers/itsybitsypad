@@ -2,11 +2,11 @@ import SwiftUI
 import Bonsplit
 
 /// The controls injected at the trailing (far-right) edge of every pane's tab bar,
-/// left to right: toggle sidebar, toggle markdown preview, global search.
+/// left to right: toggle markdown preview, global search.
 ///
-/// Wired into Bonsplit via `BonsplitController.tabBarTrailingAccessory`. Sidebar and
-/// search are window-global and dispatch through the responder chain to `AppDelegate`;
-/// the markdown toggle operates on the focused pane's selected tab via the coordinator.
+/// Wired into Bonsplit via `BonsplitController.tabBarTrailingAccessory`. Search is
+/// window-global and dispatches through the responder chain to `AppDelegate`; the
+/// markdown toggle operates on the focused pane's selected tab via the coordinator.
 struct TabBarAccessoryView: View {
     let coordinator: EditorCoordinator
 
@@ -32,13 +32,6 @@ struct TabBarAccessoryView: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            accessoryButton(
-                systemImage: "sidebar.left",
-                help: String(localized: "toolbar.toggle_sidebar", defaultValue: "Toggle sidebar")
-            ) {
-                NSApp.sendAction(#selector(AppDelegate.toggleFileBrowser), to: nil, from: nil)
-            }
-
             accessoryButton(
                 systemImage: isPreviewing ? "rectangle.split.2x1.fill" : "rectangle.split.2x1",
                 help: String(localized: "toolbar.toggle_markdown_preview", defaultValue: "Toggle markdown preview")
